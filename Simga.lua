@@ -12,29 +12,21 @@ local Section = Tab:NewSection("Keybind")
 Section:NewKeybind("ToggleKeybind", "KeybindInfo", Enum.KeyCode.V, function()
 	Library:ToggleUI()
 end)
+
 local Section = Tab:NewSection("KillAura")
-local attacking = false
-local targetPlayer = nil
-local Distance = 20
-local TicksPerSecond = 0.03
-
-local function AttackPlayer(target)
-    local args = {
-        [1] = target.Character
-    }
-
-    game:GetService("ReplicatedStorage"):FindFirstChild("events-ZLx"):FindFirstChild("4353f763-a392-484a-9430-e57e96530e32"):FireServer(unpack(args))
-end
+local Radius = 20
+local Delay = 0.03
+local remoteEvent = game:GetService("ReplicatedStorage"):FindFirstChild("events-ZLx"):FindFirstChild("4353f763-a392-484a-9430-e57e96530e32")
 
 local function FindNearestPlayer()
+    local localPlayer = game.Players.LocalPlayer
     local nearestPlayer = nil
     local nearestDistance = math.huge
-    local localPlayer = game.Players.LocalPlayer
 
     for _, player in ipairs(game.Players:GetPlayers()) do
         if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             local distance = (player.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-            if distance <= Distance and distance < nearestDistance then
+            if distance <= Radius and distance < nearestDistance then
                 nearestPlayer = player
                 nearestDistance = distance
             end
@@ -44,31 +36,23 @@ local function FindNearestPlayer()
     return nearestPlayer
 end
 
-local function UpdateTarget()
+local function FireRemoteEventWithNearestPlayer()
     local nearestPlayer = FindNearestPlayer()
-    if nearestPlayer and nearestPlayer ~= targetPlayer then
-        targetPlayer = nearestPlayer
+    if nearestPlayer then
+        local args = {
+            [1] = nearestPlayer
+        }
+        remoteEvent:FireServer(unpack(args))
     end
 end
 
-Section:NewToggle("Killaura", "Attack Nearest Player", function(state)
-    attacking = state
+local autoAttackEnabled = false
 
-    if attacking then
-        while attacking do
-            UpdateTarget()
-
-            if targetPlayer and game.Players.LocalPlayer.Character:FindFirstChildWhichIsA("Tool") then
-                AttackPlayer(targetPlayer)
-            end
-
-            wait(TicksPerSecond)
+Section:NewToggle("KillAura", "Automatically Attack Nearest Player", function(state)
+    autoAttackEnabled = state
+    if autoAttackEnabled then
+        while wait(Delay) do
+            FireRemoteEventWithNearestPlayer()
         end
-    else
-        targetPlayer = nil
     end
-end)
-
-Section:NewSlider("TicksPerSecond", "Attack Speed Per Sec", 0.03, -5, function(val)
-    TicksPerSecond = val
 end)
